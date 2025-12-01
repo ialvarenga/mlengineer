@@ -2,6 +2,23 @@
 
 A machine learning project that predicts housing prices using a REST API, developed as part of the PhData ML Engineer interview challenge.
 
+## 🚀 Live Demo
+
+The API is deployed on AWS App Runner:
+
+| Resource | URL |
+|----------|-----|
+| **API Base** | https://rkmjmwddjh.us-east-1.awsapprunner.com |
+| **API Docs** | https://rkmjmwddjh.us-east-1.awsapprunner.com/docs |
+| **Health Check** | https://rkmjmwddjh.us-east-1.awsapprunner.com/health |
+
+### Quick Test
+```bash
+curl -X POST https://rkmjmwddjh.us-east-1.awsapprunner.com/predict \
+  -H "Content-Type: application/json" \
+  -d '{"bedrooms": 3, "bathrooms": 2, "sqft_living": 2000, "sqft_lot": 5000, "floors": 1, "condition": 3, "grade": 7, "year_built": 1990, "zipcode": "98001"}'
+```
+
 ## Project Overview
 
 This project implements:
