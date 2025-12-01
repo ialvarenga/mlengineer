@@ -3,7 +3,7 @@ API Routes
 
 This module defines the REST API endpoints for the Housing Price Prediction API.
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from loguru import logger
 
@@ -23,10 +23,41 @@ from app.models.schemas import (
 )
 from app.services.prediction import prediction_service
 from app.services.demographics import demographics_service
+from app.auth import (
+    authenticate_user,
+    create_access_token,
+    require_auth,
+    Token,
+    User,
+)
+from fastapi.security import OAuth2PasswordRequestForm
 from config import API_VERSION
 
 
 router = APIRouter()
+
+
+@router.post("/login", response_model=Token, tags=["Authentication"])
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Login to get a JWT access token.
+    
+    Use the returned token in the Authorization header as: Bearer <token>
+    
+    Default credentials (change via environment variables):
+    - Username: admin (ADMIN_USERNAME)
+    - Password: admin (ADMIN_PASSWORD)
+    """
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = create_access_token(data={"sub": user.username})
+    return Token(access_token=access_token, token_type="bearer")
 
 
 @router.get("/", response_model=HealthResponse, tags=["Health"])
@@ -60,11 +91,12 @@ async def health_check():
     response_model=PredictionResponse,
     responses={
         400: {"model": ErrorResponse, "description": "Invalid input"},
+        401: {"model": ErrorResponse, "description": "Unauthorized - Missing or invalid token"},
         503: {"model": ErrorResponse, "description": "Model not available"}
     },
     tags=["Predictions"]
 )
-async def predict_price(house: HouseFeatures):
+async def predict_price(house: HouseFeatures, user: User = Depends(require_auth)):
     """
     Predict the price of a house.
     
@@ -126,9 +158,13 @@ async def predict_price(house: HouseFeatures):
 @router.post(
     "/predict/batch",
     response_model=BatchPredictionResponse,
+    responses={
+        401: {"model": ErrorResponse, "description": "Unauthorized - Missing or invalid token"},
+        503: {"model": ErrorResponse, "description": "Model not available"}
+    },
     tags=["Predictions"]
 )
-async def predict_batch(request: BatchPredictionRequest):
+async def predict_batch(request: BatchPredictionRequest, user: User = Depends(require_auth)):
     """
     Predict prices for multiple houses at once.
     
@@ -163,8 +199,15 @@ async def predict_batch(request: BatchPredictionRequest):
     )
 
 
-@router.get("/model/info", response_model=ModelInfo, tags=["Model"])
-async def get_model_info():
+@router.get(
+    "/model/info",
+    response_model=ModelInfo,
+    responses={
+        401: {"model": ErrorResponse, "description": "Unauthorized - Missing or invalid token"}
+    },
+    tags=["Model"]
+)
+async def get_model_info(user: User = Depends(require_auth)):
     """
     Get information about the current model.
     
@@ -184,8 +227,14 @@ async def get_model_info():
     )
 
 
-@router.post("/model/reload", tags=["Model"])
-async def reload_model():
+@router.post(
+    "/model/reload",
+    responses={
+        401: {"model": ErrorResponse, "description": "Unauthorized - Missing or invalid token"}
+    },
+    tags=["Model"]
+)
+async def reload_model(user: User = Depends(require_auth)):
     """
     Reload the model from disk.
     
@@ -202,8 +251,14 @@ async def reload_model():
         )
 
 
-@router.get("/demographics/{zipcode}", tags=["Demographics"])
-async def get_demographics(zipcode: str):
+@router.get(
+    "/demographics/{zipcode}",
+    responses={
+        401: {"model": ErrorResponse, "description": "Unauthorized - Missing or invalid token"}
+    },
+    tags=["Demographics"]
+)
+async def get_demographics(zipcode: str, user: User = Depends(require_auth)):
     """
     Get demographic data for a specific zip code.
     

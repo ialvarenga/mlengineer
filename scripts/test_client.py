@@ -5,12 +5,48 @@ Test Client Script
 This script demonstrates how to interact with the Housing Price Prediction API.
 It sends sample house data to the API and displays the predictions.
 """
+import os
 import requests
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+USERNAME = os.getenv("API_USERNAME", "admin")
+PASSWORD = os.getenv("API_PASSWORD", "admin")
+
+# Global token storage
+_access_token: Optional[str] = None
+
+
+def login() -> Optional[str]:
+    """Login and get an access token."""
+    global _access_token
+    
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/login",
+            data={"username": USERNAME, "password": PASSWORD},
+            timeout=10
+        )
+        if response.status_code == 200:
+            _access_token = response.json()["access_token"]
+            return _access_token
+        else:
+            print(f"❌ Login failed: {response.status_code}")
+            print(response.text)
+            return None
+    except requests.exceptions.ConnectionError:
+        print("❌ Cannot connect to API for login")
+        return None
+
+
+def get_headers() -> Dict[str, str]:
+    """Get headers for API requests, including auth token."""
+    headers = {"Content-Type": "application/json"}
+    if _access_token:
+        headers["Authorization"] = f"Bearer {_access_token}"
+    return headers
 
 
 def print_separator(title: str = ""):
@@ -44,11 +80,15 @@ def predict_single_house(house_data: Dict) -> Dict:
     response = requests.post(
         f"{API_BASE_URL}/predict",
         json=house_data,
+        headers=get_headers(),
         timeout=10
     )
     
     if response.status_code == 200:
         return response.json()
+    elif response.status_code == 401:
+        print("❌ Authentication failed. Please check credentials.")
+        return None
     else:
         print(f"❌ Error: {response.status_code}")
         print(response.text)
@@ -60,11 +100,15 @@ def predict_batch(houses: List[Dict]) -> Dict:
     response = requests.post(
         f"{API_BASE_URL}/predict/batch",
         json={"houses": houses},
+        headers=get_headers(),
         timeout=30
     )
     
     if response.status_code == 200:
         return response.json()
+    elif response.status_code == 401:
+        print("❌ Authentication failed. Please check credentials.")
+        return None
     else:
         print(f"❌ Error: {response.status_code}")
         return None
@@ -72,19 +116,33 @@ def predict_batch(houses: List[Dict]) -> Dict:
 
 def get_model_info() -> Dict:
     """Get information about the current model."""
-    response = requests.get(f"{API_BASE_URL}/model/info", timeout=5)
+    response = requests.get(
+        f"{API_BASE_URL}/model/info",
+        headers=get_headers(),
+        timeout=5
+    )
     
     if response.status_code == 200:
         return response.json()
+    elif response.status_code == 401:
+        print("❌ Authentication failed. Please check credentials.")
+        return None
     return None
 
 
 def get_demographics(zipcode: str) -> Dict:
     """Get demographic data for a zipcode."""
-    response = requests.get(f"{API_BASE_URL}/demographics/{zipcode}", timeout=5)
+    response = requests.get(
+        f"{API_BASE_URL}/demographics/{zipcode}",
+        headers=get_headers(),
+        timeout=5
+    )
     
     if response.status_code == 200:
         return response.json()
+    elif response.status_code == 401:
+        print("❌ Authentication failed. Please check credentials.")
+        return None
     return None
 
 
@@ -107,8 +165,18 @@ def main():
         print("\n⚠️ Model not loaded. Train it first with: python -m ml.train")
         return
     
-    # 2. Get Model Info
-    print_separator("2. MODEL INFORMATION")
+    # 2. Login to get access token
+    print_separator("2. AUTHENTICATION")
+    print(f"   Logging in as: {USERNAME}")
+    token = login()
+    if token:
+        print("   ✅ Login successful, token received")
+    else:
+        print("   ❌ Login failed, cannot continue with protected endpoints")
+        return
+    
+    # 3. Get Model Info
+    print_separator("3. MODEL INFORMATION")
     model_info = get_model_info()
     if model_info:
         print(f"   Model Type: {model_info['model_type']}")
@@ -119,8 +187,8 @@ def main():
             print(f"   Test R² Score: {test_metrics.get('r2_score', 'N/A'):.4f}")
             print(f"   Test RMSE: ${test_metrics.get('rmse', 0):,.2f}")
     
-    # 3. Test Demographics Lookup
-    print_separator("3. DEMOGRAPHICS LOOKUP")
+    # 4. Test Demographics Lookup
+    print_separator("4. DEMOGRAPHICS LOOKUP")
     test_zipcodes = ["98001", "98004", "98052"]
     for zipcode in test_zipcodes:
         demo = get_demographics(zipcode)
@@ -130,8 +198,8 @@ def main():
             print(f"   Median Income: ${demo.get('median_income', 0):,.0f}")
             print(f"   Population Density: {demo.get('population_density', 0):,.0f}")
     
-    # 4. Single House Prediction
-    print_separator("4. SINGLE HOUSE PREDICTION")
+    # 5. Single House Prediction
+    print_separator("5. SINGLE HOUSE PREDICTION")
     
     # Sample houses with different characteristics
     sample_houses = [
@@ -196,8 +264,8 @@ def main():
                 ci = result['confidence_interval']
                 print(f"   📈 95% CI: {format_price(ci['lower'])} - {format_price(ci['upper'])}")
     
-    # 5. Batch Prediction
-    print_separator("5. BATCH PREDICTION")
+    # 6. Batch Prediction
+    print_separator("6. BATCH PREDICTION")
     batch_houses = [house['data'] for house in sample_houses]
     
     print(f"\n   Sending {len(batch_houses)} houses for batch prediction...")
@@ -209,17 +277,18 @@ def main():
         for i, pred in enumerate(batch_result['predictions'], 1):
             print(f"   {i}. {format_price(pred['predicted_price'])} ({pred['demographic_data'].get('city', 'N/A')})")
     
-    # 6. Summary
-    print_separator("6. TEST SUMMARY")
+    # 7. Summary
+    print_separator("7. TEST SUMMARY")
     print("\n   ✅ All API endpoints tested successfully!")
     print("\n   Available Endpoints:")
-    print("   - GET  /              Health check")
-    print("   - GET  /health        Detailed health status")
-    print("   - POST /predict       Single house prediction")
-    print("   - POST /predict/batch Batch predictions")
-    print("   - GET  /model/info    Model information")
-    print("   - GET  /demographics/{zipcode}  Demographic data")
-    print("   - POST /model/reload  Reload model")
+    print("   - POST /login         Get access token")
+    print("   - GET  /              Health check (public)")
+    print("   - GET  /health        Detailed health status (public)")
+    print("   - POST /predict       Single house prediction (auth required)")
+    print("   - POST /predict/batch Batch predictions (auth required)")
+    print("   - GET  /model/info    Model information (auth required)")
+    print("   - GET  /demographics/{zipcode}  Demographic data (auth required)")
+    print("   - POST /model/reload  Reload model (auth required)")
     
     print("\n   📖 API Documentation: http://localhost:8000/docs")
     print_separator()

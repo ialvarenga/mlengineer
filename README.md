@@ -16,6 +16,7 @@ The API is deployed on AWS App Runner:
 ```bash
 curl -X POST https://rkmjmwddjh.us-east-1.awsapprunner.com/predict \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
   -d '{"bedrooms": 3, "bathrooms": 2, "sqft_living": 2000, "sqft_lot": 5000, "floors": 1, "condition": 3, "grade": 7, "year_built": 1990, "zipcode": "98001"}'
 ```
 
@@ -88,6 +89,9 @@ python -m ml.train
 
 ### 4. Run the API
 ```bash
+# Set API key for authentication (required in production)
+export API_KEY="your-secure-api-key"
+
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -98,10 +102,34 @@ python scripts/test_client.py
 
 ## API Endpoints
 
-- `GET /` - Health check
-- `GET /health` - API health status
-- `POST /predict` - Get price prediction for a house
-- `GET /model/info` - Get model information and metrics
+- `GET /` - Health check (public)
+- `GET /health` - API health status (public)
+- `POST /predict` - Get price prediction for a house (requires API key)
+- `POST /predict/batch` - Batch predictions (requires API key)
+- `GET /model/info` - Get model information and metrics (requires API key)
+- `POST /model/reload` - Reload model from disk (requires API key)
+- `GET /demographics/{zipcode}` - Get demographic data (requires API key)
+
+## Authentication
+
+The API uses API key authentication. Protected endpoints require an `X-API-Key` header.
+
+### Setup
+Set the `API_KEY` environment variable before starting the server:
+```bash
+export API_KEY="your-secure-api-key"
+```
+
+### Usage
+Include the API key in your requests:
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secure-api-key" \
+  -d '{"bedrooms": 3, ...}'
+```
+
+> **Note:** If `API_KEY` is not set, authentication is disabled (development mode).
 
 ## Example Usage
 
@@ -110,6 +138,9 @@ import requests
 
 response = requests.post(
     "http://localhost:8000/predict",
+    headers={
+        "X-API-Key": "your-secure-api-key"
+    },
     json={
         "bedrooms": 3,
         "bathrooms": 2,

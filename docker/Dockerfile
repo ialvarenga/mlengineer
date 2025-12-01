@@ -59,6 +59,8 @@ ENV PYTHONPATH=/app
 ENV API_HOST=0.0.0.0
 ENV API_PORT=8000
 ENV LOG_LEVEL=INFO
+# API_KEY should be set at runtime for security (not in Dockerfile)
+# docker run -e API_KEY=your-secret-key ...
 
 # Health check using curl (more reliable than Python)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
