@@ -1,0 +1,204 @@
+name: CI/CD Pipeline - Housing Price Prediction API
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: housing-price-api
+  APP_RUNNER_SERVICE: housing-price-api-service
+
+jobs:
+  # ===========================================
+  # Job 1: Run Tests and Linting
+  # ===========================================
+  test:
+    name: 🧪 Test & Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 black isort
+
+      - name: Lint with flake8
+        run: |
+          flake8 app/ ml/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 app/ ml/ --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+      - name: Check formatting with black
+        run: black --check --line-length 120 app/ ml/ || true
+
+      - name: Train model for tests
+        run: python -m ml.train
+
+      - name: Run unit tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: ml/artifacts/
+          retention-days: 1
+
+  # ===========================================
+  # Job 2: Build and Push Docker Image to ECR
+  # ===========================================
+  build:
+    name: 🐳 Build & Push to ECR
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    
+    outputs:
+      image_uri: ${{ steps.build-image.outputs.image }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download model artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: model-artifacts
+          path: ml/artifacts/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build the Docker image
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f docker/Dockerfile .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          # Push both tags
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          # Output the image URI
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # ===========================================
+  # Job 3: Deploy to AWS App Runner
+  # ===========================================
+  deploy:
+    name: 🚀 Deploy to App Runner
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to App Runner
+        id: deploy-apprunner
+        uses: awslabs/amazon-app-runner-deploy@main
+        with:
+          service: ${{ env.APP_RUNNER_SERVICE }}
+          image: ${{ needs.build.outputs.image_uri }}
+          access-role-arn: ${{ secrets.APP_RUNNER_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
+          cpu: 1
+          memory: 2
+          port: 8000
+          wait-for-service-stability-seconds: 300
+
+      - name: Output App Runner URL
+        run: |
+          echo "🎉 Deployment successful!"
+          echo "🌐 App Runner URL: ${{ steps.deploy-apprunner.outputs.service-url }}"
+
+      - name: Health check
+        run: |
+          sleep 30
+          curl -f ${{ steps.deploy-apprunner.outputs.service-url }}/health || exit 1
+          echo "✅ Health check passed!"
+
+  # ===========================================
+  # Job 4: Integration Tests (Post-Deploy)
+  # ===========================================
+  integration-test:
+    name: 🔍 Integration Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: pip install requests pytest
+
+      - name: Run integration tests
+        env:
+          API_URL: ${{ needs.deploy.outputs.service-url }}
+        run: |
+          # Test health endpoint
+          curl -f ${API_URL}/health
+          
+          # Test prediction endpoint
+          curl -X POST ${API_URL}/predict \
+            -H "Content-Type: application/json" \
+            -d '{"bedrooms":3,"bathrooms":2,"sqft_living":1800,"sqft_lot":5000,"floors":2,"condition":3,"grade":7,"year_built":1990,"zipcode":"98001"}'
+          
+          echo "✅ Integration tests passed!"
+
+  # ===========================================
+  # Job 5: Notify on Completion
+  # ===========================================
+  notify:
+    name: 📢 Notify
+    runs-on: ubuntu-latest
+    needs: [test, build, deploy, integration-test]
+    if: always()
+    
+    steps:
+      - name: Send notification
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ Deployment completed successfully!"
+          else
+            echo "❌ Deployment failed. Check the logs."
+          fi
