@@ -1,0 +1,78 @@
+{
+  "basic_metrics": {
+    "train": {
+      "r2_score": 0.8533797967425172,
+      "rmse": 66386.46869771465,
+      "mae": 36230.37047686688,
+      "mape": 7.3812917628936745
+    },
+    "test": {
+      "r2_score": 0.5460537427645078,
+      "rmse": 153718.6239948553,
+      "mae": 82893.75098665222,
+      "mape": 17.97870965069651
+    }
+  },
+  "overfitting_analysis": {
+    "train_r2": 0.8533797967425172,
+    "test_r2": 0.5460537427645078,
+    "r2_gap": 0.3073260539780094,
+    "status": "overfitting",
+    "description": "The model shows signs of OVERFITTING. Train R\u00b2 (0.853) is significantly higher than Test R\u00b2 (0.546). The model may be memorizing training data rather than learning generalizable patterns."
+  },
+  "feature_importance": {
+    "bedrooms": 0.008345339514214494,
+    "bathrooms": 0.05076791459155976,
+    "sqft_living": 0.19128814975828118,
+    "sqft_lot": 0.11970307731612469,
+    "floors": 0.03340143208618097,
+    "condition": 0.00034483286499422636,
+    "grade": 0.10879819934206728,
+    "year_built": 0.03865379405509514,
+    "median_income": 0.22002969237087744,
+    "population_density": 0.10559708811625088,
+    "median_age": 0.12307047998435394
+  },
+  "improvement_suggestions": [
+    {
+      "category": "Model Complexity",
+      "suggestion": "Reduce model complexity by decreasing max_depth or n_estimators",
+      "priority": "high"
+    },
+    {
+      "category": "Regularization",
+      "suggestion": "Add regularization (increase min_samples_split, min_samples_leaf)",
+      "priority": "high"
+    },
+    {
+      "category": "Data",
+      "suggestion": "Collect more training data to reduce overfitting",
+      "priority": "medium"
+    },
+    {
+      "category": "Feature Engineering",
+      "suggestion": "Add more demographic features (crime rate, school ratings)",
+      "priority": "medium"
+    },
+    {
+      "category": "Feature Engineering",
+      "suggestion": "Create interaction features (e.g., bedrooms * bathrooms)",
+      "priority": "low"
+    },
+    {
+      "category": "Hyperparameter Tuning",
+      "suggestion": "Use GridSearchCV or RandomizedSearchCV for hyperparameter optimization",
+      "priority": "medium"
+    },
+    {
+      "category": "Ensemble Methods",
+      "suggestion": "Try stacking or blending multiple models",
+      "priority": "low"
+    },
+    {
+      "category": "Data Quality",
+      "suggestion": "Handle outliers in price data more carefully",
+      "priority": "medium"
+    }
+  ]
+}
