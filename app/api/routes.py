@@ -22,7 +22,6 @@ from app.models.schemas import (
     DemographicData
 )
 from app.services.prediction import prediction_service
-from app.services.demographics import demographics_service
 from app.auth import (
     authenticate_user,
     create_access_token,
@@ -122,7 +121,7 @@ async def predict_price(house: HouseFeatures, user: User = Depends(require_auth)
     if not prediction_service.is_model_loaded:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model not loaded. Please train the model first by running: python -m ml.train"
+            detail="Model not loaded. Please run 'python create_model.py' first."
         )
     
     try:
@@ -242,7 +241,6 @@ async def reload_model(user: User = Depends(require_auth)):
     """
     try:
         prediction_service.reload_model()
-        demographics_service.reload()
         return {"message": "Model and data reloaded successfully"}
     except Exception as e:
         raise HTTPException(
@@ -253,6 +251,7 @@ async def reload_model(user: User = Depends(require_auth)):
 
 @router.get(
     "/demographics/{zipcode}",
+    response_model=DemographicData,
     responses={
         401: {"model": ErrorResponse, "description": "Unauthorized - Missing or invalid token"}
     },
@@ -265,5 +264,10 @@ async def get_demographics(zipcode: str, user: User = Depends(require_auth)):
     This endpoint returns the demographic information that would be
     automatically joined when making a prediction.
     """
-    demographics = demographics_service.get_demographics(zipcode)
-    return DemographicData(**demographics)
+    demographics = prediction_service._get_demographics_for_zipcode(zipcode)
+    return DemographicData(
+        zipcode=zipcode,
+        median_household_income=demographics.get('medn_hshld_incm_amt'),
+        population=demographics.get('ppltn_qty'),
+        housing_value=demographics.get('hous_val_amt'),
+    )
