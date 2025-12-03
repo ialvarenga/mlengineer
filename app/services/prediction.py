@@ -3,9 +3,12 @@ Prediction Service
 
 This service handles the ML model loading and prediction logic.
 Uses the model created by create_model.py (Sound Realty's basic model).
+Supports loading models from local disk or S3.
 """
+import io
 import json
 import pickle
+import tempfile
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -16,18 +19,23 @@ from loguru import logger
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from config import MODEL_DIR, MODEL_PATH, MODEL_FEATURES_PATH, ZIPCODE_DATA_PATH, MODEL_VERSION
+from config import (
+    MODEL_DIR, MODEL_PATH, MODEL_FEATURES_PATH, ZIPCODE_DATA_PATH, MODEL_VERSION,
+    USE_S3_MODEL, S3_MODEL_BUCKET, S3_MODEL_PREFIX, S3_MODEL_VERSION, AWS_REGION
+)
 
 
 class PredictionService:
     """
     Service for making housing price predictions using the Sound Realty model.
+    Supports loading models from local disk or S3.
     """
     
     _instance = None
     _model = None
     _model_features: List[str] = []
     _demographics_df: Optional[pd.DataFrame] = None
+    _loaded_version: Optional[str] = None
     
     def __new__(cls):
         """Singleton pattern to ensure only one model instance."""
@@ -37,8 +45,66 @@ class PredictionService:
             cls._instance._load_demographics()
         return cls._instance
     
-    def _load_model(self):
-        """Load the ML model and features from disk."""
+    def _get_s3_client(self):
+        """Get boto3 S3 client."""
+        import boto3
+        return boto3.client('s3', region_name=AWS_REGION)
+    
+    def _get_latest_version_from_s3(self) -> Optional[str]:
+        """Get the latest model version from S3 latest.txt pointer."""
+        try:
+            s3_client = self._get_s3_client()
+            latest_key = f"{S3_MODEL_PREFIX}/latest.txt"
+            response = s3_client.get_object(Bucket=S3_MODEL_BUCKET, Key=latest_key)
+            version = response['Body'].read().decode('utf-8').strip()
+            logger.info(f"Latest model version from S3: {version}")
+            return version
+        except Exception as e:
+            logger.error(f"Failed to get latest version from S3: {e}")
+            return None
+    
+    def _load_model_from_s3(self, version: str) -> bool:
+        """Load model and features from S3.
+        
+        Args:
+            version: Model version (timestamp) to load
+            
+        Returns:
+            True if loaded successfully, False otherwise
+        """
+        try:
+            s3_client = self._get_s3_client()
+            
+            # Load model.pkl from S3
+            model_key = f"{S3_MODEL_PREFIX}/{version}/model.pkl"
+            logger.info(f"Loading model from s3://{S3_MODEL_BUCKET}/{model_key}")
+            
+            model_response = s3_client.get_object(Bucket=S3_MODEL_BUCKET, Key=model_key)
+            model_bytes = model_response['Body'].read()
+            self._model = pickle.loads(model_bytes)
+            
+            # Load model_features.json from S3
+            features_key = f"{S3_MODEL_PREFIX}/{version}/model_features.json"
+            logger.info(f"Loading features from s3://{S3_MODEL_BUCKET}/{features_key}")
+            
+            features_response = s3_client.get_object(Bucket=S3_MODEL_BUCKET, Key=features_key)
+            features_bytes = features_response['Body'].read()
+            self._model_features = json.loads(features_bytes.decode('utf-8'))
+            
+            self._loaded_version = version
+            logger.info(f"✅ ML model loaded from S3 (version: {version}) with {len(self._model_features)} features")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to load model from S3: {e}")
+            return False
+    
+    def _load_model_from_local(self) -> bool:
+        """Load model and features from local disk.
+        
+        Returns:
+            True if loaded successfully, False otherwise
+        """
         try:
             # Load the pickled model (sklearn pipeline)
             with open(MODEL_PATH, 'rb') as f:
@@ -48,15 +114,42 @@ class PredictionService:
             with open(MODEL_FEATURES_PATH, 'r') as f:
                 self._model_features = json.load(f)
             
-            logger.info(f"ML model loaded successfully with {len(self._model_features)} features")
+            self._loaded_version = "local"
+            logger.info(f"✅ ML model loaded from local disk with {len(self._model_features)} features")
+            return True
+            
         except FileNotFoundError as e:
             logger.warning(f"Model file not found: {e}. Please run 'python create_model.py' first.")
-            self._model = None
-            self._model_features = []
+            return False
         except Exception as e:
-            logger.error(f"Error loading model: {e}")
-            self._model = None
-            self._model_features = []
+            logger.error(f"Error loading model from local disk: {e}")
+            return False
+    
+    def _load_model(self):
+        """Load the ML model and features from S3 or local disk."""
+        self._model = None
+        self._model_features = []
+        self._loaded_version = None
+        
+        if USE_S3_MODEL:
+            logger.info("Loading model from S3...")
+            
+            # Determine which version to load
+            if S3_MODEL_VERSION and S3_MODEL_VERSION != "latest":
+                version = S3_MODEL_VERSION
+            else:
+                version = self._get_latest_version_from_s3()
+            
+            if version:
+                if self._load_model_from_s3(version):
+                    return
+                else:
+                    logger.warning("Failed to load from S3, falling back to local...")
+            else:
+                logger.warning("Could not determine S3 model version, falling back to local...")
+        
+        # Load from local disk (either as primary or fallback)
+        self._load_model_from_local()
     
     def _load_demographics(self):
         """Load demographic data from CSV file."""
@@ -162,6 +255,8 @@ class PredictionService:
             return {
                 'model_type': 'Not loaded',
                 'model_version': MODEL_VERSION,
+                'loaded_version': None,
+                'source': 'none',
                 'features_used': [],
                 'status': 'Model not loaded. Run python create_model.py'
             }
@@ -171,15 +266,22 @@ class PredictionService:
         if hasattr(self._model, 'steps'):
             model_type = ' -> '.join([step[0] for step in self._model.steps])
         
+        # Determine source
+        source = "s3" if self._loaded_version and self._loaded_version != "local" else "local"
+        
         return {
             'model_type': model_type,
             'model_version': MODEL_VERSION,
+            'loaded_version': self._loaded_version,
+            'source': source,
+            's3_bucket': S3_MODEL_BUCKET if source == "s3" else None,
+            's3_prefix': S3_MODEL_PREFIX if source == "s3" else None,
             'features_used': self._model_features,
             'training_metrics': {},
         }
     
     def reload_model(self):
-        """Reload the model from disk."""
+        """Reload the model from S3 or local disk."""
         self._load_model()
         self._load_demographics()
         logger.info("Model and demographics reloaded")

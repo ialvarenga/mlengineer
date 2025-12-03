@@ -165,6 +165,68 @@ terraform destroy
 4. **Secrets** - Use GitHub Secrets, never commit credentials
 5. **CORS** - Restrict origins in production
 
+## S3 Model Storage
+
+The API can load ML models from S3, enabling:
+- **Model versioning**: Each training run creates a timestamped version
+- **Easy rollback**: Switch to any previous model version
+- **Hot reloading**: Update models without restarting the API
+
+### S3 Bucket Structure
+
+```
+s3://phdata-housing-models/
+└── models/
+    └── housing/
+        ├── latest.txt              # Points to current version
+        ├── 20251202153000/         # Version timestamp (YYYYMMDDHHmmss)
+        │   ├── model.pkl
+        │   └── model_features.json
+        └── 20251201120000/
+            ├── model.pkl
+            └── model_features.json
+```
+
+### IAM Policy for S3 Model Access
+
+Apply the policy from `iam-policy-s3-model.json` to allow read/write access:
+
+```bash
+# Create the policy
+aws iam create-policy \
+  --policy-name HousingModelS3Access \
+  --policy-document file://infrastructure/iam-policy-s3-model.json
+
+# Attach to your user or role
+aws iam attach-user-policy \
+  --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/HousingModelS3Access
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `USE_S3_MODEL` | Load model from S3 | `false` |
+| `S3_MODEL_BUCKET` | S3 bucket name | `phdata-housing-models` |
+| `S3_MODEL_PREFIX` | S3 prefix path | `models/housing` |
+| `S3_MODEL_VERSION` | Specific version or `latest` | `latest` |
+| `UPLOAD_TO_S3` | Upload model after training | `true` |
+
+### Usage
+
+```bash
+# Train and upload model to S3
+export UPLOAD_TO_S3=true
+export S3_MODEL_BUCKET=phdata-housing-models
+python create_model.py
+
+# Run API loading model from S3
+export USE_S3_MODEL=true
+export S3_MODEL_VERSION=latest  # or specific: 20251202153000
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
 ## Scaling
 
 App Runner auto-scales based on:

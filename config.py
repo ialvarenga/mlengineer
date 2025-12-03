@@ -35,6 +35,14 @@ AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 AWS_SECRET_NAME = os.getenv("AWS_SECRET_NAME", "phdata-demoapp")
 USE_AWS_SECRETS = os.getenv("USE_AWS_SECRETS", "true").lower() == "true"
 
+# S3 Model Storage Settings
+S3_MODEL_BUCKET = os.getenv("S3_MODEL_BUCKET", "phdata-housing-models")
+S3_MODEL_PREFIX = os.getenv("S3_MODEL_PREFIX", "models/housing")
+# Specific model version to load (e.g., "20251202153000"). If empty, loads "latest"
+S3_MODEL_VERSION = os.getenv("S3_MODEL_VERSION", "latest")
+# Whether to load model from S3 (False = load from local MODEL_DIR)
+USE_S3_MODEL = os.getenv("USE_S3_MODEL", "false").lower() == "true"
+
 # JWT Settings (loaded from AWS Secrets Manager if USE_AWS_SECRETS=true)
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not JWT_SECRET_KEY:
