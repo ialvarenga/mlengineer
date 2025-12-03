@@ -2,7 +2,7 @@ import json
 import os
 import pathlib
 import pickle
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from typing import Tuple
 
@@ -124,7 +124,7 @@ def main():
     output_dir.mkdir(exist_ok=True)
 
     # Generate version timestamp
-    version = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    version = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     
     # Local file paths
     model_path = output_dir / "model.pkl"

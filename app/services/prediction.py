@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from loguru import logger
 
 import sys
@@ -245,7 +245,7 @@ class PredictionService:
                 'population': demographics.get('ppltn_qty', 0),
                 'housing_value': demographics.get('hous_val_amt', 0),
             },
-            'prediction_timestamp': datetime.utcnow().isoformat(),
+            'prediction_timestamp': datetime.now(timezone.utc).isoformat(),
             'model_version': MODEL_VERSION
         }
     

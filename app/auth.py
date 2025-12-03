@@ -3,7 +3,7 @@ Authentication module for the Housing Price Prediction API.
 
 This module provides JWT-based authentication for securing endpoints.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status, Depends
@@ -74,9 +74,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode = data.copy()
     
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings["expire_minutes"])
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings["expire_minutes"])
     
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings["secret_key"], algorithm=settings["algorithm"])

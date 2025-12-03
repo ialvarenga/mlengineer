@@ -5,7 +5,7 @@ Background service that periodically checks S3 for new model versions
 and hot-reloads the model when a newer version is available.
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from loguru import logger
 
@@ -67,7 +67,7 @@ class ModelWatcher:
         """
         from app.services.prediction import prediction_service
         
-        self._last_check = datetime.utcnow()
+        self._last_check = datetime.now(timezone.utc)
         self._check_count += 1
         
         result = {

@@ -5,7 +5,7 @@ This module defines the data models for the Housing Price Prediction API.
 """
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class HouseFeatures(BaseModel):
@@ -81,7 +81,7 @@ class PredictionResponse(BaseModel):
     house_features: HouseFeatures = Field(..., description="Input house features")
     demographic_data: DemographicData = Field(..., description="Joined demographic data")
     prediction_timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp of the prediction"
     )
     model_version: str = Field(default="1.0.0", description="Version of the model used")
@@ -138,7 +138,7 @@ class BatchPredictionResponse(BaseModel):
     """
     predictions: List[PredictionResponse] = Field(..., description="List of predictions")
     total_count: int = Field(..., description="Total number of predictions")
-    prediction_timestamp: datetime = Field(default_factory=datetime.utcnow)
+    prediction_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ModelInfo(BaseModel):
@@ -159,7 +159,7 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Service status")
     model_loaded: bool = Field(..., description="Whether the model is loaded")
     api_version: str = Field(..., description="API version")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ErrorResponse(BaseModel):
@@ -168,4 +168,4 @@ class ErrorResponse(BaseModel):
     """
     error: str = Field(..., description="Error message")
     detail: Optional[str] = Field(None, description="Detailed error information")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
