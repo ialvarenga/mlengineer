@@ -50,11 +50,20 @@ FEATURE_COLUMNS = [
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-# JWT Settings
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+# AWS Settings
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+AWS_SECRET_NAME = os.getenv("AWS_SECRET_NAME", "phdata-demoapp")
+USE_AWS_SECRETS = os.getenv("USE_AWS_SECRETS", "true").lower() == "true"
+
+# JWT Settings (loaded from AWS Secrets Manager if USE_AWS_SECRETS=true)
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    raise ValueError("JWT_SECRET_KEY is required. Set it via environment variable or AWS Secrets Manager.")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_MINUTES = int(os.getenv("JWT_EXPIRATION_MINUTES", "30"))
 
-# User credentials (in production, use a database)
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+# User credentials (loaded from AWS Secrets Manager if USE_AWS_SECRETS=true)
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+    raise ValueError("ADMIN_USERNAME and ADMIN_PASSWORD are required. Set them via environment variables or AWS Secrets Manager.")

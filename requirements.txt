@@ -17,6 +17,9 @@ httpx>=0.25.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 
+# AWS
+boto3>=1.28.0
+
 # Data Validation
 python-multipart>=0.0.6
 

@@ -25,6 +25,10 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Housing Price Prediction API...")
     logger.info(f"API Version: {API_VERSION}")
     
+    # Load secrets from AWS Secrets Manager (if configured)
+    from app.secrets import load_secrets_from_aws
+    load_secrets_from_aws()
+    
     # Check if model is loaded
     from app.services.prediction import prediction_service
     if prediction_service.is_model_loaded:
