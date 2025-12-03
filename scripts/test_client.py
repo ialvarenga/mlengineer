@@ -22,12 +22,12 @@ _access_token: Optional[str] = None
 def login() -> Optional[str]:
     """Login and get an access token."""
     global _access_token
-    
+
     try:
         response = requests.post(
             f"{API_BASE_URL}/login",
             data={"username": USERNAME, "password": PASSWORD},
-            timeout=10
+            timeout=10,
         )
         if response.status_code == 200:
             _access_token = response.json()["access_token"]
@@ -66,24 +66,23 @@ def check_health() -> bool:
             print(f"✅ API Status: {data['status']}")
             print(f"   Model Loaded: {data['model_loaded']}")
             print(f"   API Version: {data['api_version']}")
-            return data['model_loaded']
+            return data["model_loaded"]
         else:
             print(f"❌ API returned status code: {response.status_code}")
             return False
     except requests.exceptions.ConnectionError:
-        print("❌ Cannot connect to API. Make sure it's running on http://localhost:8000")
+        print(
+            "❌ Cannot connect to API. Make sure it's running on http://localhost:8000"
+        )
         return False
 
 
 def predict_single_house(house_data: Dict) -> Dict:
     """Make a prediction for a single house."""
     response = requests.post(
-        f"{API_BASE_URL}/predict",
-        json=house_data,
-        headers=get_headers(),
-        timeout=10
+        f"{API_BASE_URL}/predict", json=house_data, headers=get_headers(), timeout=10
     )
-    
+
     if response.status_code == 200:
         return response.json()
     elif response.status_code == 401:
@@ -101,9 +100,9 @@ def predict_batch(houses: List[Dict]) -> Dict:
         f"{API_BASE_URL}/predict/batch",
         json={"houses": houses},
         headers=get_headers(),
-        timeout=30
+        timeout=30,
     )
-    
+
     if response.status_code == 200:
         return response.json()
     elif response.status_code == 401:
@@ -117,11 +116,9 @@ def predict_batch(houses: List[Dict]) -> Dict:
 def get_model_info() -> Dict:
     """Get information about the current model."""
     response = requests.get(
-        f"{API_BASE_URL}/model/info",
-        headers=get_headers(),
-        timeout=5
+        f"{API_BASE_URL}/model/info", headers=get_headers(), timeout=5
     )
-    
+
     if response.status_code == 200:
         return response.json()
     elif response.status_code == 401:
@@ -133,11 +130,9 @@ def get_model_info() -> Dict:
 def get_demographics(zipcode: str) -> Dict:
     """Get demographic data for a zipcode."""
     response = requests.get(
-        f"{API_BASE_URL}/demographics/{zipcode}",
-        headers=get_headers(),
-        timeout=5
+        f"{API_BASE_URL}/demographics/{zipcode}", headers=get_headers(), timeout=5
     )
-    
+
     if response.status_code == 200:
         return response.json()
     elif response.status_code == 401:
@@ -156,15 +151,15 @@ def main():
     print_separator("HOUSING PRICE PREDICTION API - TEST CLIENT")
     print("\nThis script tests the Housing Price Prediction REST API.")
     print("Make sure the API is running: uvicorn app.main:app --reload")
-    
+
     # 1. Check API Health
     print_separator("1. HEALTH CHECK")
     model_loaded = check_health()
-    
+
     if not model_loaded:
         print("\n⚠️ Model not loaded. Train it first with: python -m ml.train")
         return
-    
+
     # 2. Login to get access token
     print_separator("2. AUTHENTICATION")
     print(f"   Logging in as: {USERNAME}")
@@ -174,7 +169,7 @@ def main():
     else:
         print("   ❌ Login failed, cannot continue with protected endpoints")
         return
-    
+
     # 3. Get Model Info
     print_separator("3. MODEL INFORMATION")
     model_info = get_model_info()
@@ -182,11 +177,14 @@ def main():
         print(f"   Model Type: {model_info['model_type']}")
         print(f"   Model Version: {model_info['model_version']}")
         print(f"   Features Used: {len(model_info['features_used'])} features")
-        if model_info.get('training_metrics') and 'test' in model_info['training_metrics']:
-            test_metrics = model_info['training_metrics']['test']
+        if (
+            model_info.get("training_metrics")
+            and "test" in model_info["training_metrics"]
+        ):
+            test_metrics = model_info["training_metrics"]["test"]
             print(f"   Test R² Score: {test_metrics.get('r2_score', 'N/A'):.4f}")
             print(f"   Test RMSE: ${test_metrics.get('rmse', 0):,.2f}")
-    
+
     # 4. Test Demographics Lookup
     print_separator("4. DEMOGRAPHICS LOOKUP")
     test_zipcodes = ["98001", "98004", "98052"]
@@ -194,13 +192,15 @@ def main():
         demo = get_demographics(zipcode)
         if demo:
             print(f"\n   Zipcode: {zipcode}")
-            print(f"   City: {demo.get('city', 'N/A')}, State: {demo.get('state', 'N/A')}")
+            print(
+                f"   City: {demo.get('city', 'N/A')}, State: {demo.get('state', 'N/A')}"
+            )
             print(f"   Median Income: ${demo.get('median_income', 0):,.0f}")
             print(f"   Population Density: {demo.get('population_density', 0):,.0f}")
-    
+
     # 5. Single House Prediction
     print_separator("5. SINGLE HOUSE PREDICTION")
-    
+
     # Sample houses with different characteristics
     sample_houses = [
         {
@@ -214,8 +214,8 @@ def main():
                 "condition": 3,
                 "grade": 6,
                 "year_built": 1965,
-                "zipcode": "98001"
-            }
+                "zipcode": "98001",
+            },
         },
         {
             "name": "Family Home",
@@ -228,8 +228,8 @@ def main():
                 "condition": 4,
                 "grade": 8,
                 "year_built": 2005,
-                "zipcode": "98052"
-            }
+                "zipcode": "98052",
+            },
         },
         {
             "name": "Luxury Bellevue Property",
@@ -242,41 +242,51 @@ def main():
                 "condition": 5,
                 "grade": 11,
                 "year_built": 2020,
-                "zipcode": "98004"
-            }
-        }
+                "zipcode": "98004",
+            },
+        },
     ]
-    
+
     for house in sample_houses:
         print(f"\n🏠 {house['name']}")
         print("-" * 40)
-        
-        result = predict_single_house(house['data'])
-        
+
+        result = predict_single_house(house["data"])
+
         if result:
-            print(f"   Bedrooms: {house['data']['bedrooms']} | Bathrooms: {house['data']['bathrooms']}")
-            print(f"   Sqft Living: {house['data']['sqft_living']:,} | Year Built: {house['data']['year_built']}")
-            print(f"   Zipcode: {house['data']['zipcode']} ({result['demographic_data'].get('city', 'N/A')})")
+            print(
+                f"   Bedrooms: {house['data']['bedrooms']} | Bathrooms: {house['data']['bathrooms']}"
+            )
+            print(
+                f"   Sqft Living: {house['data']['sqft_living']:,} | Year Built: {house['data']['year_built']}"
+            )
+            print(
+                f"   Zipcode: {house['data']['zipcode']} ({result['demographic_data'].get('city', 'N/A')})"
+            )
             print()
             print(f"   📊 PREDICTED PRICE: {format_price(result['predicted_price'])}")
-            
-            if 'confidence_interval' in result:
-                ci = result['confidence_interval']
-                print(f"   📈 95% CI: {format_price(ci['lower'])} - {format_price(ci['upper'])}")
-    
+
+            if "confidence_interval" in result:
+                ci = result["confidence_interval"]
+                print(
+                    f"   📈 95% CI: {format_price(ci['lower'])} - {format_price(ci['upper'])}"
+                )
+
     # 6. Batch Prediction
     print_separator("6. BATCH PREDICTION")
-    batch_houses = [house['data'] for house in sample_houses]
-    
+    batch_houses = [house["data"] for house in sample_houses]
+
     print(f"\n   Sending {len(batch_houses)} houses for batch prediction...")
     batch_result = predict_batch(batch_houses)
-    
+
     if batch_result:
         print(f"   ✅ Received {batch_result['total_count']} predictions")
         print("\n   Summary of Predictions:")
-        for i, pred in enumerate(batch_result['predictions'], 1):
-            print(f"   {i}. {format_price(pred['predicted_price'])} ({pred['demographic_data'].get('city', 'N/A')})")
-    
+        for i, pred in enumerate(batch_result["predictions"], 1):
+            print(
+                f"   {i}. {format_price(pred['predicted_price'])} ({pred['demographic_data'].get('city', 'N/A')})"
+            )
+
     # 7. Summary
     print_separator("7. TEST SUMMARY")
     print("\n   ✅ All API endpoints tested successfully!")
@@ -289,7 +299,7 @@ def main():
     print("   - GET  /model/info    Model information (auth required)")
     print("   - GET  /demographics/{zipcode}  Demographic data (auth required)")
     print("   - POST /model/reload  Reload model (auth required)")
-    
+
     print("\n   📖 API Documentation: http://localhost:8000/docs")
     print_separator()
 

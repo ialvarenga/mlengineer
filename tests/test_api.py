@@ -3,6 +3,7 @@ API Tests
 
 Unit tests for the Housing Price Prediction API.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 import sys
@@ -18,7 +19,7 @@ client = TestClient(app)
 
 class TestHealthEndpoints:
     """Tests for health check endpoints."""
-    
+
     def test_root_endpoint(self):
         """Test the root endpoint returns health status."""
         response = client.get("/")
@@ -27,7 +28,7 @@ class TestHealthEndpoints:
         assert "status" in data
         assert "model_loaded" in data
         assert "api_version" in data
-    
+
     def test_health_endpoint(self):
         """Test the health endpoint returns detailed status."""
         response = client.get("/health")
@@ -39,7 +40,7 @@ class TestHealthEndpoints:
 
 class TestPredictionEndpoints:
     """Tests for prediction endpoints."""
-    
+
     @pytest.fixture
     def valid_house_data(self):
         """Valid house data for testing."""
@@ -52,13 +53,13 @@ class TestPredictionEndpoints:
             "condition": 3,
             "grade": 7,
             "year_built": 1990,
-            "zipcode": "98001"
+            "zipcode": "98001",
         }
-    
+
     def test_predict_endpoint_valid_data(self, valid_house_data):
         """Test prediction with valid house data."""
         response = client.post("/predict", json=valid_house_data)
-        
+
         # May return 503 if model not loaded
         if response.status_code == 200:
             data = response.json()
@@ -70,7 +71,7 @@ class TestPredictionEndpoints:
         elif response.status_code == 503:
             # Model not loaded, which is expected in test environment
             assert "Model not loaded" in response.json()["detail"]
-    
+
     def test_predict_endpoint_invalid_bedrooms(self):
         """Test prediction with invalid bedroom count."""
         invalid_data = {
@@ -82,11 +83,11 @@ class TestPredictionEndpoints:
             "condition": 3,
             "grade": 7,
             "year_built": 1990,
-            "zipcode": "98001"
+            "zipcode": "98001",
         }
         response = client.post("/predict", json=invalid_data)
         assert response.status_code == 422  # Validation error
-    
+
     def test_predict_endpoint_missing_field(self):
         """Test prediction with missing required field."""
         incomplete_data = {
@@ -96,14 +97,12 @@ class TestPredictionEndpoints:
         }
         response = client.post("/predict", json=incomplete_data)
         assert response.status_code == 422  # Validation error
-    
+
     def test_batch_predict_endpoint(self, valid_house_data):
         """Test batch prediction endpoint."""
-        batch_request = {
-            "houses": [valid_house_data, valid_house_data]
-        }
+        batch_request = {"houses": [valid_house_data, valid_house_data]}
         response = client.post("/predict/batch", json=batch_request)
-        
+
         if response.status_code == 200:
             data = response.json()
             assert "predictions" in data
@@ -115,7 +114,7 @@ class TestPredictionEndpoints:
 
 class TestModelEndpoints:
     """Tests for model information endpoints."""
-    
+
     def test_model_info_endpoint(self):
         """Test model info endpoint."""
         response = client.get("/model/info")
@@ -128,7 +127,7 @@ class TestModelEndpoints:
 
 class TestDemographicsEndpoints:
     """Tests for demographics endpoints."""
-    
+
     def test_demographics_valid_zipcode(self):
         """Test demographics lookup with valid zipcode."""
         response = client.get("/demographics/98001")
@@ -136,7 +135,7 @@ class TestDemographicsEndpoints:
         data = response.json()
         assert "zipcode" in data
         assert data["zipcode"] == "98001"
-    
+
     def test_demographics_unknown_zipcode(self):
         """Test demographics lookup with unknown zipcode."""
         response = client.get("/demographics/00000")
@@ -148,7 +147,7 @@ class TestDemographicsEndpoints:
 
 class TestDataValidation:
     """Tests for input data validation."""
-    
+
     def test_sqft_living_bounds(self):
         """Test sqft_living validation bounds."""
         # Too small
@@ -161,11 +160,11 @@ class TestDataValidation:
             "condition": 3,
             "grade": 7,
             "year_built": 1990,
-            "zipcode": "98001"
+            "zipcode": "98001",
         }
         response = client.post("/predict", json=data)
         assert response.status_code == 422
-    
+
     def test_condition_bounds(self):
         """Test condition validation bounds."""
         data = {
@@ -177,7 +176,7 @@ class TestDataValidation:
             "condition": 10,  # Above maximum
             "grade": 7,
             "year_built": 1990,
-            "zipcode": "98001"
+            "zipcode": "98001",
         }
         response = client.post("/predict", json=data)
         assert response.status_code == 422
