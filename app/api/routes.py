@@ -22,6 +22,7 @@ from app.models.schemas import (
     DemographicData
 )
 from app.services.prediction import prediction_service
+from app.services.model_watcher import model_watcher
 from app.auth import (
     authenticate_user,
     create_access_token,
@@ -284,3 +285,43 @@ async def get_demographics(zipcode: str, user: User = Depends(require_auth)):
         population=demographics.get('ppltn_qty'),
         housing_value=demographics.get('hous_val_amt'),
     )
+
+
+@router.get(
+    "/model/watcher/status",
+    responses={
+        401: {"model": ErrorResponse, "description": "Unauthorized - Missing or invalid token"}
+    },
+    tags=["Model Management"]
+)
+async def get_model_watcher_status(user: User = Depends(require_auth)):
+    """
+    Get the status of the background model watcher.
+    
+    Returns information about:
+    - Whether auto-refresh is enabled
+    - Refresh interval
+    - Last check timestamp
+    - Total checks and reloads performed
+    - Current model version
+    """
+    return model_watcher.get_status()
+
+
+@router.post(
+    "/model/watcher/check",
+    responses={
+        401: {"model": ErrorResponse, "description": "Unauthorized - Missing or invalid token"}
+    },
+    tags=["Model Management"]
+)
+async def trigger_model_check(user: User = Depends(require_auth)):
+    """
+    Manually trigger a model version check.
+    
+    This endpoint forces an immediate check for new model versions in S3,
+    bypassing the regular interval. If a new version is found, the model
+    will be hot-reloaded.
+    """
+    result = await model_watcher.check_and_reload()
+    return result

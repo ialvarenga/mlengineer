@@ -36,10 +36,17 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ ML Model not loaded. Train the model first: python -m ml.train")
     
+    # Start model watcher background task
+    from app.services.model_watcher import model_watcher
+    await model_watcher.start()
+    
     yield
     
     # Shutdown
     logger.info("Shutting down API...")
+    
+    # Stop model watcher
+    await model_watcher.stop()
 
 
 # Create FastAPI application

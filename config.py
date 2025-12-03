@@ -42,6 +42,10 @@ S3_MODEL_PREFIX = os.getenv("S3_MODEL_PREFIX", "models/housing")
 S3_MODEL_VERSION = os.getenv("S3_MODEL_VERSION", "latest")
 # Whether to load model from S3 (False = load from local MODEL_DIR)
 USE_S3_MODEL = os.getenv("USE_S3_MODEL", "false").lower() == "true"
+# Background model refresh interval in seconds (default: 600 = 10 minutes)
+MODEL_REFRESH_INTERVAL_SECONDS = int(os.getenv("MODEL_REFRESH_INTERVAL_SECONDS", "600"))
+# Enable automatic model refresh from S3
+ENABLE_MODEL_AUTO_REFRESH = os.getenv("ENABLE_MODEL_AUTO_REFRESH", "true").lower() == "true"
 
 # JWT Settings (loaded from AWS Secrets Manager if USE_AWS_SECRETS=true)
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
