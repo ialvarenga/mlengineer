@@ -104,7 +104,7 @@ class ModelWatcher:
             return result
         
         # New version available - reload
-        logger.info(f"🔄 New model version detected: {latest_version} (current: {current_version})")
+        logger.info(f"New model version detected: {latest_version} (current: {current_version})")
         
         try:
             # Reload the model
@@ -116,7 +116,7 @@ class ModelWatcher:
             result["new_version"] = prediction_service._loaded_version
             result["reason"] = f"Successfully reloaded from {current_version} to {prediction_service._loaded_version}"
             
-            logger.info(f"✅ Model hot-reloaded to version: {prediction_service._loaded_version}")
+            logger.info(f"Model hot-reloaded to version: {prediction_service._loaded_version}")
             
         except Exception as e:
             result["action"] = "error"
@@ -127,7 +127,7 @@ class ModelWatcher:
     
     async def _watch_loop(self):
         """Background loop that periodically checks for model updates."""
-        logger.info(f"🔍 Model watcher started (interval: {MODEL_REFRESH_INTERVAL_SECONDS}s)")
+        logger.info(f"Model watcher started (interval: {MODEL_REFRESH_INTERVAL_SECONDS}s)")
         
         while self._is_running:
             try:

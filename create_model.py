@@ -76,10 +76,10 @@ def upload_to_s3(local_path: pathlib.Path, s3_key: str, bucket: str) -> bool:
     try:
         s3_client = boto3.client('s3', region_name=AWS_REGION)
         s3_client.upload_file(str(local_path), bucket, s3_key)
-        print(f"✅ Uploaded {local_path.name} to s3://{bucket}/{s3_key}")
+        print(f"[OK] Uploaded {local_path.name} to s3://{bucket}/{s3_key}")
         return True
     except ClientError as e:
-        print(f"❌ Failed to upload {local_path.name} to S3: {e}")
+        print(f"[ERROR] Failed to upload {local_path.name} to S3: {e}")
         return False
 
 
@@ -103,10 +103,10 @@ def update_latest_pointer(version: str, bucket: str, prefix: str) -> bool:
             Body=version.encode('utf-8'),
             ContentType='text/plain'
         )
-        print(f"✅ Updated latest pointer to version: {version}")
+        print(f"[OK] Updated latest pointer to version: {version}")
         return True
     except ClientError as e:
-        print(f"❌ Failed to update latest pointer: {e}")
+        print(f"[ERROR] Failed to update latest pointer: {e}")
         return False
 
 
@@ -134,13 +134,13 @@ def main():
     pickle.dump(model, open(model_path, 'wb'))
     json.dump(list(x_train.columns), open(features_path, 'w'))
     
-    print(f"\n📦 Model artifacts saved locally to: {output_dir}/")
+    print(f"\nModel artifacts saved locally to: {output_dir}/")
     print(f"   - model.pkl")
     print(f"   - model_features.json")
     
     # Upload to S3 if enabled
     if UPLOAD_TO_S3:
-        print(f"\n☁️  Uploading to S3 bucket: {S3_MODEL_BUCKET}")
+        print(f"\nUploading to S3 bucket: {S3_MODEL_BUCKET}")
         print(f"   Version: {version}")
         
         # S3 keys with version
@@ -154,12 +154,12 @@ def main():
         # Update latest pointer if both uploads succeeded
         if model_uploaded and features_uploaded:
             update_latest_pointer(version, S3_MODEL_BUCKET, S3_MODEL_PREFIX)
-            print(f"\n✅ Model version {version} successfully uploaded to S3!")
+            print(f"\n[OK] Model version {version} successfully uploaded to S3!")
             print(f"   S3 path: s3://{S3_MODEL_BUCKET}/{S3_MODEL_PREFIX}/{version}/")
         else:
-            print("\n⚠️  Some uploads failed. Check AWS credentials and bucket permissions.")
+            print("\n[WARNING] Some uploads failed. Check AWS credentials and bucket permissions.")
     else:
-        print("\n⏭️  S3 upload skipped (UPLOAD_TO_S3=false)")
+        print("\n[SKIP] S3 upload skipped (UPLOAD_TO_S3=false)")
 
 
 if __name__ == "__main__":

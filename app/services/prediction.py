@@ -92,7 +92,7 @@ class PredictionService:
             self._model_features = json.loads(features_bytes.decode('utf-8'))
             
             self._loaded_version = version
-            logger.info(f"✅ ML model loaded from S3 (version: {version}) with {len(self._model_features)} features")
+            logger.info(f"ML model loaded from S3 (version: {version}) with {len(self._model_features)} features")
             return True
             
         except Exception as e:
@@ -115,7 +115,7 @@ class PredictionService:
                 self._model_features = json.load(f)
             
             self._loaded_version = "local"
-            logger.info(f"✅ ML model loaded from local disk with {len(self._model_features)} features")
+            logger.info(f"ML model loaded from local disk with {len(self._model_features)} features")
             return True
             
         except FileNotFoundError as e:

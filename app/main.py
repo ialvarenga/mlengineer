@@ -32,9 +32,9 @@ async def lifespan(app: FastAPI):
     # Check if model is loaded
     from app.services.prediction import prediction_service
     if prediction_service.is_model_loaded:
-        logger.info("✅ ML Model loaded successfully")
+        logger.info("ML Model loaded successfully")
     else:
-        logger.warning("⚠️ ML Model not loaded. Train the model first: python -m ml.train")
+        logger.warning("ML Model not loaded. Train the model first: python -m ml.train")
     
     # Start model watcher background task
     from app.services.model_watcher import model_watcher
