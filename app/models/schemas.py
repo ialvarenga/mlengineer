@@ -13,16 +13,26 @@ class HouseFeatures(BaseModel):
     Input model for house features.
     
     These are the features that a user provides to get a price prediction.
+    Based on the columns in future_unseen_examples.csv (excluding price, date, id).
     """
     bedrooms: int = Field(..., ge=0, le=20, description="Number of bedrooms")
     bathrooms: float = Field(..., ge=0, le=10, description="Number of bathrooms")
     sqft_living: int = Field(..., ge=100, le=50000, description="Living area in square feet")
-    sqft_lot: int = Field(..., ge=100, le=1000000, description="Lot size in square feet")
+    sqft_lot: int = Field(..., ge=100, le=2000000, description="Lot size in square feet")
     floors: float = Field(..., ge=1, le=4, description="Number of floors")
+    waterfront: int = Field(default=0, ge=0, le=1, description="Waterfront property (0 or 1)")
+    view: int = Field(default=0, ge=0, le=4, description="View rating (0-4)")
     condition: int = Field(..., ge=1, le=5, description="Condition rating (1-5)")
     grade: int = Field(..., ge=1, le=13, description="Grade rating (1-13)")
-    year_built: int = Field(..., ge=1800, le=2025, description="Year the house was built")
+    sqft_above: int = Field(..., ge=0, le=50000, description="Square feet above ground")
+    sqft_basement: int = Field(default=0, ge=0, le=10000, description="Square feet of basement")
+    yr_built: int = Field(..., ge=1800, le=2025, description="Year the house was built")
+    yr_renovated: int = Field(default=0, ge=0, le=2025, description="Year renovated (0 if never)")
     zipcode: str = Field(..., min_length=5, max_length=10, description="Zip code for demographic data lookup")
+    lat: Optional[float] = Field(default=None, description="Latitude")
+    long: Optional[float] = Field(default=None, description="Longitude")
+    sqft_living15: Optional[int] = Field(default=None, description="Living area of nearest 15 neighbors")
+    sqft_lot15: Optional[int] = Field(default=None, description="Lot size of nearest 15 neighbors")
     
     model_config = {
         "json_schema_extra": {
@@ -33,9 +43,14 @@ class HouseFeatures(BaseModel):
                     "sqft_living": 1800,
                     "sqft_lot": 5000,
                     "floors": 2,
+                    "waterfront": 0,
+                    "view": 0,
                     "condition": 3,
                     "grade": 7,
-                    "year_built": 1990,
+                    "sqft_above": 1800,
+                    "sqft_basement": 0,
+                    "yr_built": 1990,
+                    "yr_renovated": 0,
                     "zipcode": "98001"
                 }
             ]
@@ -46,13 +61,12 @@ class HouseFeatures(BaseModel):
 class DemographicData(BaseModel):
     """
     Demographic data automatically joined from zipcode.
+    Based on zipcode_demographics.csv columns.
     """
     zipcode: str
-    median_income: Optional[float] = None
-    population_density: Optional[float] = None
-    median_age: Optional[float] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
+    median_household_income: Optional[float] = Field(default=None, description="Median household income")
+    population: Optional[float] = Field(default=None, description="Population quantity")
+    housing_value: Optional[float] = Field(default=None, description="Housing value")
 
 
 class PredictionResponse(BaseModel):
