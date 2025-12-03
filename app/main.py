@@ -12,6 +12,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.secrets import load_secrets_from_aws
+load_secrets_from_aws()
+
 from config import API_TITLE, API_DESCRIPTION, API_VERSION
 from app.api.routes import router
 
@@ -21,35 +24,25 @@ async def lifespan(app: FastAPI):
     """
     Application lifespan events.
     """
-    # Startup
     logger.info("Starting Housing Price Prediction API...")
     logger.info(f"API Version: {API_VERSION}")
     
-    # Load secrets from AWS Secrets Manager (if configured)
-    from app.secrets import load_secrets_from_aws
-    load_secrets_from_aws()
-    
-    # Check if model is loaded
     from app.services.prediction import prediction_service
     if prediction_service.is_model_loaded:
         logger.info("ML Model loaded successfully")
     else:
         logger.warning("ML Model not loaded. Train the model first: python -m ml.train")
     
-    # Start model watcher background task
     from app.services.model_watcher import model_watcher
     await model_watcher.start()
     
     yield
     
-    # Shutdown
     logger.info("Shutting down API...")
     
-    # Stop model watcher
     await model_watcher.stop()
 
 
-# Create FastAPI application
 app = FastAPI(
     title=API_TITLE,
     description=API_DESCRIPTION,
@@ -60,16 +53,14 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routes
 app.include_router(router)
 
 
