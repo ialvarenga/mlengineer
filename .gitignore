@@ -9,3 +9,4 @@ __pycache__/
 *.tfstate.backup
 *.tfstate.*.backup
 .terraform.lock.hcl
+.github/instructions/default.instructions.md
