@@ -85,7 +85,6 @@ class ModelWatcher:
             logger.debug("Model check skipped: S3 model loading is disabled")
             return result
         
-        # Get latest version from S3
         latest_version = self._get_latest_version_from_s3()
         result["latest_version"] = latest_version
         
@@ -96,18 +95,15 @@ class ModelWatcher:
         
         current_version = prediction_service._loaded_version
         
-        # Compare versions (they are timestamps, so string comparison works)
         if current_version == latest_version:
             result["action"] = "no_update"
             result["reason"] = f"Current version {current_version} is already the latest"
             logger.debug(f"Model check: version {current_version} is current")
             return result
         
-        # New version available - reload
         logger.info(f"New model version detected: {latest_version} (current: {current_version})")
         
         try:
-            # Reload the model
             prediction_service.reload_model()
             self._reload_count += 1
             
@@ -135,7 +131,6 @@ class ModelWatcher:
             except Exception as e:
                 logger.error(f"Error in model watcher loop: {e}")
             
-            # Wait for next check interval
             await asyncio.sleep(MODEL_REFRESH_INTERVAL_SECONDS)
     
     async def start(self):
@@ -190,5 +185,4 @@ class ModelWatcher:
         }
 
 
-# Global instance
 model_watcher = ModelWatcher()
