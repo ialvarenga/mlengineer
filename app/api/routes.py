@@ -99,24 +99,37 @@ async def predict_price(house: HouseFeatures, user: User = Depends(require_auth)
     """
     Predict the price of a house.
     
-    This endpoint takes house details as input and automatically joins
-    zip code demographic data behind the scenes to make a prediction.
+    This endpoint receives JSON POST data with house details matching the columns
+    in `data/future_unseen_examples.csv`. Demographic data is automatically joined
+    from `data/zipcode_demographics.csv` based on the zipcode.
     
-    **Input Features:**
+    **Input Features (from future_unseen_examples.csv):**
     - bedrooms: Number of bedrooms
     - bathrooms: Number of bathrooms
     - sqft_living: Living area in square feet
     - sqft_lot: Lot size in square feet
     - floors: Number of floors
+    - waterfront: Waterfront property (0 or 1)
+    - view: View rating (0-4)
     - condition: Condition rating (1-5)
     - grade: Grade rating (1-13)
-    - year_built: Year the house was built
+    - sqft_above: Square feet above ground
+    - sqft_basement: Square feet of basement
+    - yr_built: Year the house was built
+    - yr_renovated: Year renovated (0 if never)
     - zipcode: Zip code (for demographic data lookup)
+    - lat: Latitude (optional)
+    - long: Longitude (optional)
+    - sqft_living15: Living area of nearest 15 neighbors (optional)
+    - sqft_lot15: Lot size of nearest 15 neighbors (optional)
     
     **Returns:**
     - predicted_price: Estimated price in USD
-    - confidence_interval: Price range with 95% confidence
-    - demographic_data: Joined demographic information
+    - confidence_interval: Price range estimate
+    - house_features: Echo of input features
+    - demographic_data: Joined demographic information from zipcode
+    - prediction_timestamp: When the prediction was made
+    - model_version: Version of the model used
     """
     if not prediction_service.is_model_loaded:
         raise HTTPException(

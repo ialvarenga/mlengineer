@@ -92,8 +92,8 @@ class PredictionResponse(BaseModel):
                 {
                     "predicted_price": 425000.00,
                     "confidence_interval": {
-                        "lower": 380000.00,
-                        "upper": 470000.00
+                        "lower": 361250.00,
+                        "upper": 488750.00
                     },
                     "house_features": {
                         "bedrooms": 3,
@@ -101,20 +101,23 @@ class PredictionResponse(BaseModel):
                         "sqft_living": 1800,
                         "sqft_lot": 5000,
                         "floors": 2,
+                        "waterfront": 0,
+                        "view": 0,
                         "condition": 3,
                         "grade": 7,
-                        "year_built": 1990,
+                        "sqft_above": 1800,
+                        "sqft_basement": 0,
+                        "yr_built": 1990,
+                        "yr_renovated": 0,
                         "zipcode": "98001"
                     },
                     "demographic_data": {
                         "zipcode": "98001",
-                        "median_income": 58000,
-                        "population_density": 2850,
-                        "median_age": 34.5,
-                        "city": "Auburn",
-                        "state": "WA"
+                        "median_household_income": 60534,
+                        "population": 25495,
+                        "housing_value": 168400
                     },
-                    "prediction_timestamp": "2025-11-30T12:00:00Z",
+                    "prediction_timestamp": "2025-12-02T12:00:00Z",
                     "model_version": "1.0.0"
                 }
             ]
