@@ -14,14 +14,13 @@ from sklearn import neighbors
 from sklearn import pipeline
 from sklearn import preprocessing
 
-SALES_PATH = "data/kc_house_data.csv"  # path to CSV with home sale data
-DEMOGRAPHICS_PATH = "data/kc_house_data.csv"  # path to CSV with demographics
-# List of columns (subset) that will be taken from home sale data
+SALES_PATH = "data/kc_house_data.csv"
+DEMOGRAPHICS_PATH = "data/kc_house_data.csv"
 SALES_COLUMN_SELECTION = [
     'price', 'bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 'floors',
     'sqft_above', 'sqft_basement', 'zipcode'
 ]
-OUTPUT_DIR = "model"  # Directory where output artifacts will be saved
+OUTPUT_DIR = "model"
 
 # S3 Configuration
 S3_MODEL_BUCKET = os.getenv("S3_MODEL_BUCKET", "phdata-housing-models")
@@ -76,10 +75,10 @@ def upload_to_s3(local_path: pathlib.Path, s3_key: str, bucket: str) -> bool:
     try:
         s3_client = boto3.client('s3', region_name=AWS_REGION)
         s3_client.upload_file(str(local_path), bucket, s3_key)
-        print(f"[OK] Uploaded {local_path.name} to s3://{bucket}/{s3_key}")
+        print(f"Uploaded {local_path.name} to s3://{bucket}/{s3_key}")
         return True
     except ClientError as e:
-        print(f"[ERROR] Failed to upload {local_path.name} to S3: {e}")
+        print(f"Failed to upload {local_path.name} to S3: {e}")
         return False
 
 
@@ -113,7 +112,7 @@ def update_latest_pointer(version: str, bucket: str, prefix: str) -> bool:
 def main():
     """Load data, train model, and export artifacts."""
     x, y = load_data(SALES_PATH, DEMOGRAPHICS_PATH, SALES_COLUMN_SELECTION)
-    x_train, _x_test, y_train, _y_test = model_selection.train_test_split(
+    x_train, _, y_train, _ = model_selection.train_test_split(
         x, y, random_state=42)
 
     model = pipeline.make_pipeline(preprocessing.RobustScaler(),
@@ -123,14 +122,11 @@ def main():
     output_dir = pathlib.Path(OUTPUT_DIR)
     output_dir.mkdir(exist_ok=True)
 
-    # Generate version timestamp
     version = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     
-    # Local file paths
     model_path = output_dir / "model.pkl"
     features_path = output_dir / "model_features.json"
     
-    # Output model artifacts locally: pickled model and JSON list of features
     pickle.dump(model, open(model_path, 'wb'))
     json.dump(list(x_train.columns), open(features_path, 'w'))
     
@@ -138,28 +134,24 @@ def main():
     print(f"   - model.pkl")
     print(f"   - model_features.json")
     
-    # Upload to S3 if enabled
     if UPLOAD_TO_S3:
         print(f"\nUploading to S3 bucket: {S3_MODEL_BUCKET}")
         print(f"   Version: {version}")
         
-        # S3 keys with version
         s3_model_key = f"{S3_MODEL_PREFIX}/{version}/model.pkl"
         s3_features_key = f"{S3_MODEL_PREFIX}/{version}/model_features.json"
         
-        # Upload files
         model_uploaded = upload_to_s3(model_path, s3_model_key, S3_MODEL_BUCKET)
         features_uploaded = upload_to_s3(features_path, s3_features_key, S3_MODEL_BUCKET)
         
-        # Update latest pointer if both uploads succeeded
         if model_uploaded and features_uploaded:
             update_latest_pointer(version, S3_MODEL_BUCKET, S3_MODEL_PREFIX)
-            print(f"\n[OK] Model version {version} successfully uploaded to S3!")
-            print(f"   S3 path: s3://{S3_MODEL_BUCKET}/{S3_MODEL_PREFIX}/{version}/")
+            print(f"\n[Model version {version} successfully uploaded to S3!")
+            print(f"S3 path: s3://{S3_MODEL_BUCKET}/{S3_MODEL_PREFIX}/{version}/")
         else:
-            print("\n[WARNING] Some uploads failed. Check AWS credentials and bucket permissions.")
+            print("\nSome uploads failed. Check AWS credentials and bucket permissions.")
     else:
-        print("\n[SKIP] S3 upload skipped (UPLOAD_TO_S3=false)")
+        print("\nS3 upload skipped (UPLOAD_TO_S3=false)")
 
 
 if __name__ == "__main__":
