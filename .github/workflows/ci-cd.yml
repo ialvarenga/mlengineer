@@ -47,7 +47,7 @@ jobs:
         run: pytest tests/ -v --tb=short
 
       - name: Run integration tests
-        run: echo "Integration tests placeholder - TODO: implement"
+        run: echo "Integration tests placeholder"
 
       - name: Upload model artifacts
         uses: actions/upload-artifact@v4
