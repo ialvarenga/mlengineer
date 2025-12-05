@@ -41,6 +41,9 @@ notebook>=7.0.0
 # Model Metrics
 scipy>=1.11.0
 
+# Experiment Tracking
+mlflow>=2.9.0
+
 # Logging
 loguru>=0.7.0
 
