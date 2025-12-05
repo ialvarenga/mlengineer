@@ -13,6 +13,7 @@ from sklearn import model_selection
 from sklearn import neighbors
 from sklearn import pipeline
 from sklearn import preprocessing
+from sklearn.model_selection import GridSearchCV
 
 SALES_PATH = "data/kc_house_data.csv"
 DEMOGRAPHICS_PATH = "data/kc_house_data.csv"
@@ -121,11 +122,34 @@ def update_latest_pointer(version: str, bucket: str, prefix: str) -> bool:
 def main():
     """Load data, train model, and export artifacts."""
     x, y = load_data(SALES_PATH, DEMOGRAPHICS_PATH, SALES_COLUMN_SELECTION)
-    x_train, _, y_train, _ = model_selection.train_test_split(x, y, random_state=42)
+    x_train, x_test, y_train, y_test = model_selection.train_test_split(
+        x, y, random_state=42
+    )
 
-    model = pipeline.make_pipeline(
+    base_pipeline = pipeline.make_pipeline(
         preprocessing.RobustScaler(), neighbors.KNeighborsRegressor()
-    ).fit(x_train, y_train)
+    )
+
+    param_grid = {
+        "kneighborsregressor__n_neighbors": [3, 5, 7, 10, 15],
+        "kneighborsregressor__weights": ["uniform", "distance"],
+        "kneighborsregressor__p": [1, 2],
+    }
+
+    grid_search = GridSearchCV(
+        base_pipeline,
+        param_grid,
+        cv=5,
+        scoring="r2",
+        n_jobs=-1,
+    )
+    grid_search.fit(x_train, y_train)
+
+    print(f"\nBest hyperparameters: {grid_search.best_params_}")
+    print(f"Best CV R² score: {grid_search.best_score_:.4f}")
+    print(f"Test R² score: {grid_search.score(x_test, y_test):.4f}")
+
+    model = grid_search.best_estimator_
 
     output_dir = pathlib.Path(OUTPUT_DIR)
     output_dir.mkdir(exist_ok=True)
