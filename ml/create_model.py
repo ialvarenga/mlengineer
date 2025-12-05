@@ -9,14 +9,14 @@ from typing import Tuple
 import boto3
 import pandas
 from botocore.exceptions import ClientError
-from sklearn import model_selection
-from sklearn import neighbors
-from sklearn import pipeline
-from sklearn import preprocessing
-from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import RobustScaler
 
 SALES_PATH = "data/kc_house_data.csv"
-DEMOGRAPHICS_PATH = "data/kc_house_data.csv"
+DEMOGRAPHICS_PATH = "data/zipcode_demographics.csv"
+RANDOM_STATE = 42
 SALES_COLUMN_SELECTION = [
     "price",
     "bedrooms",
@@ -120,36 +120,42 @@ def update_latest_pointer(version: str, bucket: str, prefix: str) -> bool:
 
 
 def main():
-    """Load data, train model, and export artifacts."""
+    """Load data, train model, and export artifacts.
+
+    Uses Gradient Boosting Regressor which achieved Test R² = 0.7950
+    in experiment 01, with best generalization (R² gap = 0.0973).
+    """
     x, y = load_data(SALES_PATH, DEMOGRAPHICS_PATH, SALES_COLUMN_SELECTION)
-    x_train, x_test, y_train, y_test = model_selection.train_test_split(
-        x, y, random_state=42
+    x_train, x_test, y_train, y_test = train_test_split(
+        x, y, test_size=0.25, random_state=RANDOM_STATE
     )
 
-    base_pipeline = pipeline.make_pipeline(
-        preprocessing.RobustScaler(), neighbors.KNeighborsRegressor()
+    model = Pipeline(
+        [
+            ("scaler", RobustScaler()),
+            (
+                "gb",
+                GradientBoostingRegressor(
+                    n_estimators=100,
+                    max_depth=5,
+                    learning_rate=0.1,
+                    random_state=RANDOM_STATE,
+                ),
+            ),
+        ]
     )
 
-    param_grid = {
-        "kneighborsregressor__n_neighbors": [3, 5, 7, 10, 15],
-        "kneighborsregressor__weights": ["uniform", "distance"],
-        "kneighborsregressor__p": [1, 2],
-    }
+    cv_scores = cross_val_score(model, x_train, y_train, cv=5, scoring="r2", n_jobs=-1)
+    print(f"\n5-Fold CV R² scores: {cv_scores}")
+    print(f"Mean CV R² score: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
 
-    grid_search = GridSearchCV(
-        base_pipeline,
-        param_grid,
-        cv=5,
-        scoring="r2",
-        n_jobs=-1,
-    )
-    grid_search.fit(x_train, y_train)
+    model.fit(x_train, y_train)
+    train_score = model.score(x_train, y_train)
+    test_score = model.score(x_test, y_test)
 
-    print(f"\nBest hyperparameters: {grid_search.best_params_}")
-    print(f"Best CV R² score: {grid_search.best_score_:.4f}")
-    print(f"Test R² score: {grid_search.score(x_test, y_test):.4f}")
-
-    model = grid_search.best_estimator_
+    print(f"\nTrain R² score: {train_score:.4f}")
+    print(f"Test R² score: {test_score:.4f}")
+    print(f"R² gap (overfitting indicator): {train_score - test_score:.4f}")
 
     output_dir = pathlib.Path(OUTPUT_DIR)
     output_dir.mkdir(exist_ok=True)
