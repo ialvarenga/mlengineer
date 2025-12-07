@@ -137,7 +137,7 @@ jobs:
           cpu: 1
           memory: 2
           port: 8000
-          wait-for-service-stability-seconds: 300
+          wait-for-service-stability-seconds: 600
 
       - name: Output App Runner URL
         run: |
