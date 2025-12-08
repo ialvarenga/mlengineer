@@ -20,9 +20,24 @@
                 "--host",
                 "0.0.0.0",
                 "--port",
-                "8000"
+                "8001"
             ],
             "jinja": true,
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Streamlit: Start UI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "ui/app.py",
+                "--server.port",
+                "8501"
+            ],
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env",
             "cwd": "${workspaceFolder}"
