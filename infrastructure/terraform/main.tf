@@ -160,6 +160,38 @@ resource "aws_iam_role_policy" "apprunner_cloudwatch" {
   })
 }
 
+# Add Secrets Manager permissions for App Runner instance
+resource "aws_iam_role_policy" "apprunner_secrets_manager" {
+  name = "${var.app_name}-secrets-manager-policy"
+  role = aws_iam_role.apprunner_instance.id
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowGetSecretValue"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.aws_region}:*:secret:phdata-demoapp*"
+        ]
+      },
+      {
+        Sid    = "AllowDescribeSecret"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.aws_region}:*:secret:phdata-demoapp*"
+        ]
+      }
+    ]
+  })
+}
+
 # ===========================================
 # App Runner Service
 # ===========================================

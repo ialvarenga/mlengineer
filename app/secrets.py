@@ -48,7 +48,7 @@ def load_secrets_from_aws(secret_name: Optional[str] = None) -> bool:
         return True
 
     # Get secret name from parameter or environment
-    secret_name = secret_name or os.getenv("AWS_SECRET_NAME", "housing-api/secrets")
+    secret_name = secret_name or os.getenv("AWS_SECRET_NAME", "phdata-demoapp")
 
     # Check if we should use AWS Secrets Manager (default: true)
     use_aws_secrets = os.getenv("USE_AWS_SECRETS", "true").lower() == "true"
